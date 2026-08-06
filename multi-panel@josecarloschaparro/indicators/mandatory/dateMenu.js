@@ -23,7 +23,34 @@ import * as DateMenu from 'resource:///org/gnome/shell/ui/dateMenu.js';
 
 const NativeAuxiliaryDateMenuButton = class NativeAuxiliaryDateMenuButton extends DateMenu.DateMenuButton {
     _init() {
-        super._init();
+        // DateMenuButton._init() connects to sessionMode 'updated' with a plain
+        // connect() and never disconnects it. The shell's own date menu is
+        // never destroyed, so the leak is invisible upstream, but auxiliary
+        // panels are torn down on monitor changes and panel rebuilds. The stale
+        // handler then runs _sessionUpdated() against a disposed actor when the
+        // screen locks, throwing "can't access property attach, layout is null"
+        // out of Calendar._rebuildCalendar().
+        //
+        // The base class never exposes the handler id, so capture it by
+        // intercepting connect() for the duration of the parent constructor.
+        const sessionMode = Main.sessionMode;
+        const realConnect = sessionMode.connect.bind(sessionMode);
+        const capturedIds = [];
+        sessionMode.connect = (signal, callback) => {
+            const id = realConnect(signal, callback);
+            capturedIds.push(id);
+            return id;
+        };
+        try {
+            super._init();
+        } finally {
+            sessionMode.connect = realConnect;
+        }
+
+        this.connect('destroy', () => {
+            for (const id of capturedIds)
+                sessionMode.disconnect(id);
+        });
 
         const mainButton = Main.panel.statusArea?.dateMenu ?? null;
         if (mainButton) {
