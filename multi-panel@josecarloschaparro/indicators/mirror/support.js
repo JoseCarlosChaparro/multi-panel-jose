@@ -509,10 +509,17 @@ const cloneSupportMethods = {
 
     _syncLabelTexts(container) {
         const children = container.get_children();
+        const tracksVisibility =
+            !(this._hasCapability?.('ignore-source-visibility') ?? false);
         for (const child of children) {
             if (child instanceof St.Label && child._sourceLabel) {
                 try {
                     child.text = child._sourceLabel.text;
+                    // Sources such as InputSourceIndicator keep one label per
+                    // input source and toggle visibility when the active one
+                    // changes, so the mirror has to follow that too.
+                    if (tracksVisibility)
+                        child.visible = child._sourceLabel.visible;
                 } catch (_e) {
                 }
             }

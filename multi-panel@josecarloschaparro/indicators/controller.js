@@ -462,11 +462,17 @@ export class StatusIndicatorsController {
         const rankMap = new Map();
         orderedRoles.forEach((role, index) => rankMap.set(role, index));
 
-        entries.sort((a, b) => {
-            const aRank = a.role && rankMap.has(a.role) ? rankMap.get(a.role) : Number.MAX_SAFE_INTEGER;
-            const bRank = b.role && rankMap.has(b.role) ? rankMap.get(b.role) : Number.MAX_SAFE_INTEGER;
-            return aRank - bRank;
-        });
+        // Indicators that are not in the configured order (typically tray icons
+        // registered after the initial scan, whose role embeds a D-Bus name that
+        // changes every restart) would otherwise sort past the trailing
+        // indicator and push it away from the screen edge. Rank them just
+        // before it instead, so the trailing indicator stays pinned.
+        const trailingRank = orderedRoles.length - 1;
+        const unlistedRank = Math.max(trailingRank - 0.5, -1);
+        const rankOf = role =>
+            role && rankMap.has(role) ? rankMap.get(role) : unlistedRank;
+
+        entries.sort((a, b) => rankOf(a.role) - rankOf(b.role));
 
         for (const {child} of entries) {
             const role = this._getMainPanelRoleForChild(child);

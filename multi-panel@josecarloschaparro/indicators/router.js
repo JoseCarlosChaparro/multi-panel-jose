@@ -313,7 +313,11 @@ const INDICATOR_RULES = [
                 'native-menu-position',
                 'track-empty-source',
                 'ignore-source-style',
-                'ignore-source-visibility',
+                // 'ignore-source-visibility' is deliberately NOT set here.
+                // InputSourceIndicator keeps one St.Label per configured input
+                // source and hides all but the active one, so ignoring source
+                // visibility would mirror every layout at once and render
+                // "enes" instead of "es".
             ]),
         }),
     },
