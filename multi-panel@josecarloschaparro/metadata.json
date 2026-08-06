@@ -1,0 +1,13 @@
+{
+    "shell-version": [
+        "50"
+    ],
+    "uuid": "multi-panel@josecarloschaparro",
+    "name": "Multi Panel (Jose fork)",
+    "author": "inasis",
+    "settings-schema": "org.gnome.shell.extensions.multi-panel-jose",
+    "gettext-domain": "multi-panel",
+    "description": "Additional monitor bars with mirrored indicators, transfers, and multi-panel layout controls.",
+    "url": "https://github.com/JoseCarlosChaparro/multi-panel-jose",
+    "version": 33
+}

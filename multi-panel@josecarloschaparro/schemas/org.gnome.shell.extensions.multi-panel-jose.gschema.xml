@@ -1,6 +1,6 @@
 <schemalist gettext-domain="gnome-shell-extensions">
-  <schema id="org.gnome.shell.extensions.multi-panel"
-    path="/org/gnome/shell/extensions/multi-panel/">
+  <schema id="org.gnome.shell.extensions.multi-panel-jose"
+    path="/org/gnome/shell/extensions/multi-panel-jose/">
 
     <key name="show-panel" type="b">
       <default>true</default>
