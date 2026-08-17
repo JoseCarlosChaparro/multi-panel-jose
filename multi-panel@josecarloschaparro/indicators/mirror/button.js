@@ -449,7 +449,10 @@ export const MirroredIndicatorButton = GObject.registerClass(
                 return;
 
             try {
-                source.disconnect(this[signalKey]);
+                // Disconnecting a stale id only logs a GLib warning instead of
+                // throwing, so the id has to be validated first.
+                if (GObject.signal_handler_is_connected(source, this[signalKey]))
+                    source.disconnect(this[signalKey]);
             } catch (_e) {
             }
 
@@ -469,7 +472,8 @@ export const MirroredIndicatorButton = GObject.registerClass(
 
                 if (entry?.signalId && entry?.source) {
                     try {
-                        entry.source.disconnect(entry.signalId);
+                        if (GObject.signal_handler_is_connected(entry.source, entry.signalId))
+                            entry.source.disconnect(entry.signalId);
                     } catch (_e) {
                     }
                 }
@@ -489,7 +493,8 @@ export const MirroredIndicatorButton = GObject.registerClass(
 
             for (const {actor, signalId} of this._sourceGrandchildVisibleIds) {
                 try {
-                    actor.disconnect(signalId);
+                    if (GObject.signal_handler_is_connected(actor, signalId))
+                        actor.disconnect(signalId);
                 } catch (_e) {
                 }
             }
