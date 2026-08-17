@@ -216,6 +216,7 @@ export class StatusIndicatorsController {
             return;
         }
 
+        this._restoreMainPanelIndicatorPositions();
         this._restoreMainPanelIndicatorPadding();
         this._restoreMainPanelIndicatorGap();
         this._restoreMainPanelPanelPadding();
@@ -345,18 +346,43 @@ export class StatusIndicatorsController {
             if (!targetBox || currentParent === targetBox)
                 return;
 
+            // Remember where the stock panel had this indicator so restore can
+            // put it back exactly there instead of guessing a default box.
+            container._mmOriginalMainPanelBox ??= currentParent;
+
             currentParent.remove_child(container);
             targetBox.add_child(container);
         });
     }
 
     _applyMainPanelIndicatorPositions() {
+        // Guard clause: the main panel keeps its stock layout unless the user opted in.
+        // Reparenting a PanelMenu.Button container detaches it from Panel's own layout
+        // bookkeeping, which collapses indicators into the overflow menu.
+        if (!PanelSettings.shouldApplyIndicatorLayoutToMainPanel(this._settings))
+            return;
+
         this._moveMainPanelIndicators(role => this._getMainPanelTargetBox(role));
         this._reorderMainPanelIndicators();
     }
 
     _restoreMainPanelIndicatorPositions() {
-        this._moveMainPanelIndicators(role => this._getMainPanelTargetBox(role, true));
+        this._forEachPersistentStatusIndicator((_role, indicator) => {
+            const container = this._getIndicatorContainer(indicator);
+            const originalBox = container?._mmOriginalMainPanelBox;
+            if (!originalBox)
+                return;
+
+            delete container._mmOriginalMainPanelBox;
+
+            const currentParent = container.get_parent?.() ?? null;
+            if (currentParent === originalBox ||
+                !this._getMainPanelPositionBoxes().includes(currentParent))
+                return;
+
+            currentParent.remove_child(container);
+            originalBox.add_child(container);
+        });
     }
 
     _applyMainPanelHiddenIndicators() {
@@ -413,10 +439,8 @@ export class StatusIndicatorsController {
         });
     }
 
-    _getMainPanelTargetBox(role, useDefaultPosition = false) {
-        const position = useDefaultPosition
-            ? PanelSettings.getDefaultIndicatorPosition(role)
-            : PanelSettings.getIndicatorPosition(this._settings, role);
+    _getMainPanelTargetBox(role) {
+        const position = PanelSettings.getIndicatorPosition(this._settings, role);
 
         switch (position) {
         case PanelSettings.PANEL_BOX_CENTER:
@@ -485,6 +509,11 @@ export class StatusIndicatorsController {
     }
 
     _reorderMainPanelIndicators() {
+        // Same guard as _moveMainPanelIndicators: leave the stock panel alone
+        // unless the user explicitly opted into main-panel layout management.
+        if (!PanelSettings.shouldApplyIndicatorLayoutToMainPanel(this._settings))
+            return;
+
         [Main.panel._leftBox, Main.panel._centerBox, Main.panel._rightBox]
             .forEach(box => this._reorderMainPanelBox(box));
     }
