@@ -120,9 +120,14 @@ export const FIXED_EXTERNAL_PANEL_ROLES = [
     'quickSettings',
 ];
 
+// Roles owned by the tray/StatusNotifier bridges. They are re-registered under a
+// new name every time the host application restarts, so they must never be
+// persisted in settings nor reparented by the main-panel layout pass.
 const TRANSIENT_ROLE_PATTERNS = [
-    /^appindicator-:/i,
+    /^appindicator-/i,
+    /^kstatusnotifieritem-/i,
     /^org\/ayatana\/NotificationItem/i,
+    /_status_icon_\d+$/i,
 ];
 
 // Store reference to auxiliary panels set by extension.js
