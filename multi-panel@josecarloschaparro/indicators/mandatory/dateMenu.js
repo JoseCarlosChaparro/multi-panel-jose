@@ -31,25 +31,39 @@ const NativeAuxiliaryDateMenuButton = class NativeAuxiliaryDateMenuButton extend
         // screen locks, throwing "can't access property attach, layout is null"
         // out of Calendar._rebuildCalendar().
         //
-        // The base class never exposes the handler id, so capture it by
-        // intercepting connect() for the duration of the parent constructor.
-        const sessionMode = Main.sessionMode;
-        const realConnect = sessionMode.connect.bind(sessionMode);
-        const capturedIds = [];
-        sessionMode.connect = (signal, callback) => {
-            const id = realConnect(signal, callback);
-            capturedIds.push(id);
-            return id;
-        };
+        // The same class of leak exists for Main.messageTray: the embedded
+        // MessagesIndicator connects to it with plain connect() and never
+        // disconnects, so a destroyed auxiliary date menu keeps receiving
+        // notification callbacks and crashes on its cleared _settings
+        // ("can't access property get_boolean, this._settings is null").
+        //
+        // The base class never exposes the handler ids, so capture them by
+        // intercepting connect() on both emitters for the duration of the
+        // parent constructor.
+        const leakyEmitters = [Main.sessionMode, Main.messageTray].filter(Boolean);
+        const captured = [];
+        const realConnects = new Map();
+        for (const emitter of leakyEmitters) {
+            const realConnect = emitter.connect.bind(emitter);
+            realConnects.set(emitter, realConnect);
+            emitter.connect = (signal, callback) => {
+                const id = realConnect(signal, callback);
+                captured.push({ emitter, id });
+                return id;
+            };
+        }
         try {
             super._init();
         } finally {
-            sessionMode.connect = realConnect;
+            for (const emitter of leakyEmitters)
+                emitter.connect = realConnects.get(emitter);
         }
 
         this.connect('destroy', () => {
-            for (const id of capturedIds)
-                sessionMode.disconnect(id);
+            for (const { emitter, id } of captured) {
+                if (GObject.signal_handler_is_connected(emitter, id))
+                    emitter.disconnect(id);
+            }
         });
 
         const mainButton = Main.panel.statusArea?.dateMenu ?? null;
