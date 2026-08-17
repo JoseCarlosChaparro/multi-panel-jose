@@ -7,7 +7,7 @@
     "author": "inasis",
     "settings-schema": "org.gnome.shell.extensions.multi-panel-jose",
     "gettext-domain": "multi-panel",
-    "description": "Additional monitor bars with mirrored indicators, transfers, and multi-panel layout controls.",
+    "description": "Show a top bar on every monitor, not just the primary one.\n\n• Clock/calendar, Activities and Quick Settings mirrored on each secondary monitor\n• Transfer individual indicators (e.g. clipboard, keyboard layout) to the panel of another monitor\n• Optional layout management of the main panel: per-indicator position (left/center/right), order, visibility, padding and panel height — off by default, the stock panel is left untouched\n• Per-monitor screenshot support\n\nConfigure everything from Settings.\n\nFork of multi-monitors-add-on (spin83) / multi-panel (inasis), updated for GNOME Shell 50.",
     "url": "https://github.com/JoseCarlosChaparro/multi-panel-jose",
     "version": 33
 }
