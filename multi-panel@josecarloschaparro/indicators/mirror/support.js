@@ -19,9 +19,12 @@ along with this program; if not, visit https://www.gnu.org/licenses/.
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+
+import { getIndicatorDescriptor } from '../router.js';
 
 const cloneSupportMethods = {
 
@@ -343,7 +346,10 @@ const cloneSupportMethods = {
                 continue;
 
             try {
-                sourceWidget.disconnect(signalId);
+                // Disconnecting a stale id only logs a GLib warning instead of
+                // throwing, so the id has to be validated first.
+                if (GObject.signal_handler_is_connected(sourceWidget, signalId))
+                    sourceWidget.disconnect(signalId);
             } catch (_e) {
             }
         }
@@ -426,6 +432,18 @@ const cloneSupportMethods = {
                     );
 
                     labelCopy._sourceLabel = widget;
+                    // Drop the reference as soon as the source label dies so the
+                    // periodic label sync never touches a disposed GObject.
+                    labelCopy._sourceLabelDestroyId = widget.connect('destroy', () => {
+                        labelCopy._sourceLabel = null;
+                        labelCopy._sourceLabelDestroyId = 0;
+                    });
+                    labelCopy.connect('destroy', () => {
+                        if (labelCopy._sourceLabelDestroyId && labelCopy._sourceLabel)
+                            labelCopy._sourceLabel.disconnect(labelCopy._sourceLabelDestroyId);
+                        labelCopy._sourceLabel = null;
+                        labelCopy._sourceLabelDestroyId = 0;
+                    });
                     container.add_child(labelCopy);
                 }
             }
@@ -529,7 +547,26 @@ const cloneSupportMethods = {
 };
 
 const interactionSupportMethods = {
+    // The source indicator can be recreated by its own extension after this
+    // mirror was built (e.g. clipboard-indicator finishing its async init),
+    // leaving clicks forwarded to a disposed object. Re-resolve it by role
+    // before every interaction so the mirror always targets the live instance.
+    _refreshStaleSourceIndicator() {
+        const role = this._role;
+        if (!role)
+            return;
+
+        const current = Main.panel.statusArea?.[role] ?? null;
+        if (!current || current === this._sourceIndicator)
+            return;
+
+        this._sourceIndicator = current;
+        this._descriptor = getIndicatorDescriptor({ role, source: current });
+    },
+
     _onButtonPress() {
+        this._refreshStaleSourceIndicator();
+
         if (this._isDescriptorKind?.('overview-forward')) {
             Main.overview.toggle();
             return Clutter.EVENT_STOP;
