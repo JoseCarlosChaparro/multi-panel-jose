@@ -408,6 +408,10 @@ export class AuxiliaryPanelLayoutManager {
 		if (panel && this.statusIndicatorsController) {
 			this.statusIndicatorsController.transferBack(panel);
 		}
+		// Destroy the panel explicitly: when Clutter destroys it as a child of
+		// panelBox, the JS destroy() override never runs and its sessionMode,
+		// overview and settings handlers leak.
+		panel?.destroy();
 		let panelBox = this._panelBoxes.pop();
 		if (panelBox) {
 			panelBox.destroy();
