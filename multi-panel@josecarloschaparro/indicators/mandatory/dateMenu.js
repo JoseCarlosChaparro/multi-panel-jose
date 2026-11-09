@@ -21,6 +21,8 @@ import GObject from 'gi://GObject';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as DateMenu from 'resource:///org/gnome/shell/ui/dateMenu.js';
 
+import { disconnectSafely } from '../../core/signals.js';
+
 const NativeAuxiliaryDateMenuButton = class NativeAuxiliaryDateMenuButton extends DateMenu.DateMenuButton {
     _init() {
         // DateMenuButton._init() connects to sessionMode 'updated' with a plain
@@ -60,10 +62,8 @@ const NativeAuxiliaryDateMenuButton = class NativeAuxiliaryDateMenuButton extend
         }
 
         this.connect('destroy', () => {
-            for (const { emitter, id } of captured) {
-                if (GObject.signal_handler_is_connected(emitter, id))
-                    emitter.disconnect(id);
-            }
+            for (const { emitter, id } of captured)
+                disconnectSafely(emitter, id);
         });
 
         const mainButton = Main.panel.statusArea?.dateMenu ?? null;

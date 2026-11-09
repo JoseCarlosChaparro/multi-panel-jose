@@ -29,6 +29,7 @@ import * as Util from 'resource:///org/gnome/shell/misc/util.js';
 import { installMirroredIndicatorSupport } from './support.js';
 import { getIndicatorDescriptor } from '../router.js';
 import * as Common from '../../shared/common.js';
+import { disconnectSafely } from '../../core/signals.js';
 
 const INACTIVE_WORKSPACE_DOT_SCALE = 0.75;
 
@@ -448,14 +449,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
             if (!source || !this[signalKey])
                 return;
 
-            try {
-                // Disconnecting a stale id only logs a GLib warning instead of
-                // throwing, so the id has to be validated first.
-                if (GObject.signal_handler_is_connected(source, this[signalKey]))
-                    source.disconnect(this[signalKey]);
-            } catch (_e) {
-            }
-
+            disconnectSafely(source, this[signalKey]);
             this[signalKey] = null;
         }
 
@@ -470,13 +464,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
                     entry.timeoutId = null;
                 }
 
-                if (entry?.signalId && entry?.source) {
-                    try {
-                        if (GObject.signal_handler_is_connected(entry.source, entry.signalId))
-                            entry.source.disconnect(entry.signalId);
-                    } catch (_e) {
-                    }
-                }
+                disconnectSafely(entry?.source, entry?.signalId);
             }
 
             this._allocationSyncedClones.clear();
@@ -491,13 +479,8 @@ export const MirroredIndicatorButton = GObject.registerClass(
             if (!this._sourceGrandchildVisibleIds)
                 return;
 
-            for (const {actor, signalId} of this._sourceGrandchildVisibleIds) {
-                try {
-                    if (GObject.signal_handler_is_connected(actor, signalId))
-                        actor.disconnect(signalId);
-                } catch (_e) {
-                }
-            }
+            for (const {actor, signalId} of this._sourceGrandchildVisibleIds)
+                disconnectSafely(actor, signalId);
 
             this._sourceGrandchildVisibleIds = null;
         }

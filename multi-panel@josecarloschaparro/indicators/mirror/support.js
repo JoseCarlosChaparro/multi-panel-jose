@@ -19,12 +19,12 @@ along with this program; if not, visit https://www.gnu.org/licenses/.
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
-import GObject from 'gi://GObject';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 
 import { getIndicatorDescriptor } from '../router.js';
+import { disconnectSafely } from '../../core/signals.js';
 
 const cloneSupportMethods = {
 
@@ -341,18 +341,8 @@ const cloneSupportMethods = {
         if (!this._trackedWidgetSignals)
             return;
 
-        for (const {sourceWidget, signalId} of this._trackedWidgetSignals) {
-            if (!sourceWidget || !signalId)
-                continue;
-
-            try {
-                // Disconnecting a stale id only logs a GLib warning instead of
-                // throwing, so the id has to be validated first.
-                if (GObject.signal_handler_is_connected(sourceWidget, signalId))
-                    sourceWidget.disconnect(signalId);
-            } catch (_e) {
-            }
-        }
+        for (const {sourceWidget, signalId} of this._trackedWidgetSignals)
+            disconnectSafely(sourceWidget, signalId);
 
         this._trackedWidgetSignals = [];
     },
