@@ -1032,16 +1032,27 @@ const interactionSupportMethods = {
         }
 
         const originalSetPosition = menuBox.setPosition;
+        // Chain to the class method, not to the instance property: if a
+        // previous override was never restored, the instance property is
+        // that override and chaining to it would recurse.
+        const baseSetPosition = Object.getPrototypeOf(menuBox).setPosition;
         const monitor = Main.layoutManager.monitors[monitorIndex] || Main.layoutManager.primaryMonitor;
 
-        if (typeof menuBox.setPosition !== 'function') {
+        if (typeof baseSetPosition !== 'function') {
             return {
                 originalSetPosition,
                 removedConstraints,
             };
         }
 
-        menuBox.setPosition = function (sourceActor, _alignment) {
+        menuBox.setPosition = function (sourceActor, alignment) {
+            // Chain up first: BoxPointer.setPosition() is the only place that
+            // initialises _arrowAlignment (and tracks the source actor's
+            // destruction). Skipping it leaves _arrowAlignment undefined on a
+            // menu that was never opened from the main panel, so _reposition()
+            // computes a NaN allocation and the menu never shows up.
+            baseSetPosition.call(this, sourceActor, alignment);
+
             const [btnX, btnY] = sourceActor.get_transformed_position();
             const [btnW, btnH] = sourceActor.get_transformed_size();
             const [, , naturalMenuW, naturalMenuH] = this.get_preferred_size();
@@ -1051,10 +1062,8 @@ const interactionSupportMethods = {
 
             if (![btnX, btnY, monitor?.x, monitor?.y].every(Number.isFinite) ||
                 ![btnW, btnH, finalMenuW, finalMenuH, monitor?.width, monitor?.height]
-                    .every(value => Number.isFinite(value) && value > 0)) {
-                originalSetPosition?.call(this, sourceActor, _alignment);
+                    .every(value => Number.isFinite(value) && value > 0))
                 return;
-            }
 
             let newX = btnX + btnW / 2 - finalMenuW / 2;
             let newY = btnY + btnH;
@@ -1084,6 +1093,13 @@ const interactionSupportMethods = {
         };
     },
 
+    _restoreBoxPointerSource(boxPointer, sourceActor) {
+        // BoxPointer.setPosition() ties a 'destroy' handler to the mirror;
+        // drop it so destroying the mirror later doesn't null the restored source.
+        boxPointer._sourceActor?.disconnectObject?.(boxPointer);
+        boxPointer._sourceActor = sourceActor;
+    },
+
     _restoreMenuState(menu, originalSourceActor, originalBoxPointer, sourceState, menuBoxState) {
         if (originalSourceActor)
             this._setMenuSourceActor(menu, originalSourceActor);
@@ -1092,9 +1108,9 @@ const interactionSupportMethods = {
         if (menuPositionActor) {
             if (menuBoxState?.nativePositionOnly) {
                 if (menuBoxState.originalBoxPointer)
-                    menuPositionActor._sourceActor = menuBoxState.originalBoxPointer;
+                    this._restoreBoxPointerSource(menuPositionActor, menuBoxState.originalBoxPointer);
             } else if (originalBoxPointer) {
-                menuPositionActor._sourceActor = originalBoxPointer;
+                this._restoreBoxPointerSource(menuPositionActor, originalBoxPointer);
             }
         }
 
