@@ -55,13 +55,17 @@ export default class MultiPanelExtension extends Extension {
 	enable() {
         this._settings = this.getSettings();
 
+        // The registry must exist before showPanel(): it creates the panels and
+        // pushes them into it. Resetting it afterwards dropped every panel, so
+        // the indicator controller never saw them and _popPanel() never
+        // destroyed them.
+        auxiliaryPanels.length = 0;
+        PanelSettings.setPanelRegistryRef(auxiliaryPanels);
+
         auxiliaryLayoutManager = new AuxiliaryPanelManager.AuxiliaryPanelLayoutManager(this._settings);
 
         this._showPanelId = this._settings.connect('changed::' + AuxiliaryPanelManager.SHOW_PANEL_ID, auxiliaryLayoutManager.showPanel.bind(auxiliaryLayoutManager));
         auxiliaryLayoutManager.showPanel();
-
-        auxiliaryPanels.length = 0;
-        PanelSettings.setPanelRegistryRef(auxiliaryPanels);
 
 		patchMainPanelEnsureIndicator();
 
