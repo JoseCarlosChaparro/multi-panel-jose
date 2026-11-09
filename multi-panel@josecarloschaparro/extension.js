@@ -27,7 +27,10 @@ import * as ScreenshotHandler from './screenshot/screenshot.js';
 export let auxiliaryPanels = [];
 export let auxiliaryLayoutManager = null;
 
+let originalEnsureIndicator = null;
+
 function patchMainPanelEnsureIndicator() {
+	originalEnsureIndicator = Main.panel._ensureIndicator;
 	Main.panel._ensureIndicator = function (role) {
 		const existingIndicator = this.statusArea[role];
 		if (existingIndicator) {
@@ -43,6 +46,14 @@ function patchMainPanelEnsureIndicator() {
 		this.statusArea[role] = indicator;
 		return indicator;
 	};
+}
+
+function unpatchMainPanelEnsureIndicator() {
+	if (!originalEnsureIndicator)
+		return;
+
+	Main.panel._ensureIndicator = originalEnsureIndicator;
+	originalEnsureIndicator = null;
 }
 
 export default class MultiPanelExtension extends Extension {
@@ -75,6 +86,7 @@ export default class MultiPanelExtension extends Extension {
 
 	disable() {
         ScreenshotHandler.unpatchScreenshotUI();
+        unpatchMainPanelEnsureIndicator();
 
 		// Unpatch screenshot UI
 		if (this._showPanelId) {
